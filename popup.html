@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 320px;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1e1e1e;
+      color: #e0e0e0;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #ffffff;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: #808080;
+    }
+
+    .toggle-section {
+      background: #252525;
+      border: 1px solid #3c3c3c;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .toggle-label {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 48px;
+      height: 24px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #3c3c3c;
+      transition: 0.3s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: #0078d4;
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(24px);
+    }
+
+    .status {
+      font-size: 12px;
+      color: #808080;
+    }
+
+    .status.active {
+      color: #4caf50;
+    }
+
+    .info-section {
+      background: #252525;
+      border: 1px solid #3c3c3c;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .info-section h3 {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #ffffff;
+    }
+
+    .info-section ul {
+      list-style: none;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #b0b0b0;
+    }
+
+    .info-section li {
+      margin-bottom: 4px;
+      padding-left: 16px;
+      position: relative;
+    }
+
+    .info-section li::before {
+      content: "•";
+      position: absolute;
+      left: 4px;
+      color: #0078d4;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      color: #666666;
+      padding-top: 12px;
+      border-top: 1px solid #3c3c3c;
+    }
+
+    .footer a {
+      color: #0078d4;
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Console Overlay</h1>
+    <div class="subtitle">Live Console Monitoring</div>
+  </div>
+
+  <div class="toggle-section">
+    <div class="toggle-container">
+      <span class="toggle-label">Enable Overlay</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="toggleOverlay">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="status" id="status">Overlay is disabled</div>
+  </div>
+
+  <div class="info-section">
+    <h3>Features</h3>
+    <ul>
+      <li>Live console monitoring</li>
+      <li>Drag to reposition</li>
+      <li>Resize, minimize, maximize</li>
+      <li>Filter by log type</li>
+      <li>Copy individual or all logs</li>
+      <li>Captures errors & warnings</li>
+    </ul>
+  </div>
+
+  <div class="info-section">
+    <h3>Quick Actions</h3>
+    <ul>
+      <li>Double-click titlebar to maximize</li>
+      <li>Drag resize handle to resize</li>
+      <li>Click 📋 to copy individual logs</li>
+      <li>"Copy All" for filtered logs</li>
+    </ul>
+  </div>
+
+  <div class="footer">
+    © 2026 Martin Pfeffer | <a href="https://celox.io" target="_blank">celox.io</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

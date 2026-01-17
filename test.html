@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Console Overlay - Quick Test</title>
+    <style>
+        body {
+            font-family: system-ui;
+            padding: 40px;
+            background: #f0f0f0;
+        }
+        button {
+            padding: 12px 24px;
+            margin: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 16px;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>Console Overlay - Quick Test</h1>
+    
+    <div class="status">
+        <p><strong>Schritte:</strong></p>
+        <ol>
+            <li>Console Overlay Extension aktivieren (Klick auf Icon → Toggle AN)</li>
+            <li>Diese Seite neu laden (F5)</li>
+            <li>Buttons unten klicken</li>
+            <li>Logs sollten im Overlay erscheinen</li>
+        </ol>
+    </div>
+
+    <div>
+        <button onclick="console.log('Test Log', Date.now())">Log Test</button>
+        <button onclick="console.warn('Test Warnung', Date.now())">Warn Test</button>
+        <button onclick="console.error('Test Fehler', Date.now())">Error Test</button>
+        <button onclick="console.info('Test Info', Date.now())">Info Test</button>
+        <button onclick="testLoop()">5x Loop</button>
+    </div>
+
+    <script>
+        console.log('Seite geladen:', new Date().toISOString());
+        
+        function testLoop() {
+            for (let i = 1; i <= 5; i++) {
+                console.log(`Loop Iteration ${i}`);
+            }
+        }
+
+        // Auto-Test nach 1 Sekunde
+        setTimeout(() => {
+            console.log('Auto-Test: 1 Sekunde nach Laden');
+        }, 1000);
+
+        setTimeout(() => {
+            console.warn('Auto-Test: 2 Sekunden nach Laden');
+        }, 2000);
+
+        setTimeout(() => {
+            console.error('Auto-Test: 3 Sekunden nach Laden');
+        }, 3000);
+    </script>
+</body>
+</html>

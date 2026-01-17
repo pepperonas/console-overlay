@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Console Overlay - Demo Page</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            color: #444;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-log {
+            background: #4ec9b0;
+            color: white;
+        }
+
+        .btn-info {
+            background: #4fc3f7;
+            color: white;
+        }
+
+        .btn-warn {
+            background: #ffa726;
+            color: white;
+        }
+
+        .btn-error {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-debug {
+            background: #9c27b0;
+            color: white;
+        }
+
+        .btn-special {
+            background: #607d8b;
+            color: white;
+        }
+
+        .info-box {
+            background: #f5f5f5;
+            border-left: 4px solid #667eea;
+            padding: 16px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+
+        .info-box p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+
+        .info-box strong {
+            color: #333;
+        }
+
+        .counter {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .counter-value {
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: white;
+            font-size: 14px;
+        }
+
+        .footer a {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Console Overlay Demo</h1>
+        <p class="subtitle">Teste die verschiedenen Console-Funktionen</p>
+
+        <div class="section">
+            <h2>Basis Logs</h2>
+            <div class="button-grid">
+                <button class="btn-log" onclick="testLog()">console.log()</button>
+                <button class="btn-info" onclick="testInfo()">console.info()</button>
+                <button class="btn-warn" onclick="testWarn()">console.warn()</button>
+                <button class="btn-error" onclick="testError()">console.error()</button>
+                <button class="btn-debug" onclick="testDebug()">console.debug()</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Spezial-Tests</h2>
+            <div class="button-grid">
+                <button class="btn-special" onclick="testObject()">Objekt ausgeben</button>
+                <button class="btn-special" onclick="testArray()">Array ausgeben</button>
+                <button class="btn-special" onclick="testMultiple()">Mehrere Argumente</button>
+                <button class="btn-special" onclick="testError2()">Echter Fehler werfen</button>
+                <button class="btn-special" onclick="testPromiseRejection()">Promise Rejection</button>
+                <button class="btn-special" onclick="testSpam()">Spam (10x)</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Auto-Logger</h2>
+            <div class="button-grid">
+                <button class="btn-log" onclick="startAutoLog()">Start Auto-Log</button>
+                <button class="btn-error" onclick="stopAutoLog()">Stop Auto-Log</button>
+            </div>
+            <div class="counter">
+                <div>Automatische Logs:</div>
+                <div class="counter-value" id="counter">0</div>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <p><strong>So verwendest du das Console Overlay:</strong></p>
+            <p>1. Installiere die Extension im Chrome</p>
+            <p>2. Klicke auf das Extension-Icon und aktiviere "Enable Overlay"</p>
+            <p>3. Das Overlay erscheint unten rechts</p>
+            <p>4. Teste die Buttons oben, um verschiedene Console-Ausgaben zu generieren</p>
+            <p>5. Ziehe das Overlay herum, ändere die Größe, oder maximiere es</p>
+        </div>
+    </div>
+
+    <div class="footer">
+        © 2026 Martin Pfeffer | <a href="https://celox.io" target="_blank">celox.io</a>
+    </div>
+
+    <script>
+        let autoLogInterval = null;
+        let counter = 0;
+
+        function testLog() {
+            console.log('Dies ist eine normale Log-Nachricht');
+        }
+
+        function testInfo() {
+            console.info('Dies ist eine Info-Nachricht mit wichtigen Informationen');
+        }
+
+        function testWarn() {
+            console.warn('⚠️ Dies ist eine Warnung - etwas könnte schief gehen!');
+        }
+
+        function testError() {
+            console.error('❌ Dies ist eine Fehlermeldung - etwas ist schief gegangen!');
+        }
+
+        function testDebug() {
+            console.debug('🐛 Debug-Information: Variable X hat den Wert Y');
+        }
+
+        function testObject() {
+            const user = {
+                name: 'Martin Pfeffer',
+                role: 'Senior Software Developer',
+                company: 'celox.io',
+                skills: ['Java', 'Spring Boot', 'React', 'Android'],
+                location: {
+                    city: 'Berlin',
+                    country: 'Germany'
+                }
+            };
+            console.log('User Object:', user);
+        }
+
+        function testArray() {
+            const technologies = [
+                'Java', 'Spring Boot', 'React', 'Android', 
+                'JavaScript', 'TypeScript', 'Node.js'
+            ];
+            console.log('Technologies Array:', technologies);
+        }
+
+        function testMultiple() {
+            console.log('Mehrere', 'Argumente', 'in', 'einer', 'Zeile', { test: true }, [1, 2, 3]);
+        }
+
+        function testError2() {
+            try {
+                throw new Error('Dies ist ein geworfener Fehler mit Stack Trace');
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function testPromiseRejection() {
+            Promise.reject('Unhandled Promise Rejection - etwas ging schief im Async-Code');
+        }
+
+        function testSpam() {
+            for (let i = 1; i <= 10; i++) {
+                console.log(`Spam-Nachricht #${i}`);
+            }
+        }
+
+        function startAutoLog() {
+            if (autoLogInterval) return;
+            
+            counter = 0;
+            updateCounter();
+            
+            autoLogInterval = setInterval(() => {
+                counter++;
+                updateCounter();
+                
+                const types = ['log', 'info', 'warn', 'error', 'debug'];
+                const type = types[Math.floor(Math.random() * types.length)];
+                const messages = [
+                    `Auto-generierte ${type} Nachricht #${counter}`,
+                    `Automatischer Test ${counter}: Alles funktioniert`,
+                    `Performance Metric ${counter}: 42ms`,
+                    `Background Task ${counter} completed`,
+                    `API Call ${counter}: Status 200 OK`
+                ];
+                const message = messages[Math.floor(Math.random() * messages.length)];
+                
+                console[type](message);
+            }, 1000);
+        }
+
+        function stopAutoLog() {
+            if (autoLogInterval) {
+                clearInterval(autoLogInterval);
+                autoLogInterval = null;
+                console.log('Auto-Logger gestoppt');
+            }
+        }
+
+        function updateCounter() {
+            document.getElementById('counter').textContent = counter;
+        }
+
+        // Initial Test-Log beim Laden
+        console.log('Demo-Seite geladen - Console Overlay ist bereit! 🚀');
+    </script>
+</body>
+</html>
