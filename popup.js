@@ -1,4 +1,4 @@
-// Popup script v1.2.2
+// Popup script v1.2.3
 document.addEventListener('DOMContentLoaded', async () => {
   const toggleCheckbox = document.getElementById('toggleOverlay');
   const statusText = document.getElementById('status');
