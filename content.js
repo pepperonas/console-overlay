@@ -1,4 +1,4 @@
-// Content script v1.2.3 - Added network error monitoring
+// Content script v1.2.4
 (function() {
   'use strict';
 
