@@ -173,6 +173,16 @@ Console Output des Extensions:
 
 ## Changelog
 
+### Version 1.2.2 (2026-01-17)
+- Fix: Alle 8 Resize-Handles (nw, n, ne, w, e, sw, s, se) funktionieren jetzt korrekt
+- Fix: Minimize/Maximize State-Management getrennt (verhindert State-Überschreibung)
+- Fix: Popup zeigt Fehlermeldung auf chrome:// und edge:// Seiten
+- Fix: Fensterposition wird korrekt wiederhergestellt nach Maximize
+
+### Version 1.2.1 (2026-01-17)
+- Opacity-Slider hinzugefügt
+- Verbessertes State-Management
+
 ### Version 1.0.0 (2026-01-17)
 - Initial Release
 - Live Console Monitoring

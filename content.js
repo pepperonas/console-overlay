@@ -1,4 +1,4 @@
-// Content script v1.2.0 - Complete rewrite with bug fixes
+// Content script v1.2.2 - Bug fixes for resize handles and state management
 (function() {
   'use strict';
 
@@ -20,7 +20,8 @@
   // Window state
   let isMinimized = false;
   let isMaximized = false;
-  let savedState = null;
+  let savedStateMinimize = null;
+  let savedStateMaximize = null;
 
   // Inject script
   function injectScript() {
@@ -198,10 +199,12 @@
       }
     });
 
-    document.addEventListener('mouseup', () => {
+    function handleMouseUp() {
       if (isDragging) { isDragging = false; saveState(); }
       if (isResizing) { isResizing = false; resizeDirection = null; saveState(); }
-    });
+    }
+
+    document.addEventListener('mouseup', handleMouseUp);
 
     // Buttons
     overlay.querySelector('.console-close').addEventListener('click', () => toggleOverlay());
@@ -226,45 +229,51 @@
     const win = overlay.querySelector('.console-window');
     const content = overlay.querySelector('.console-content');
     const toolbar = overlay.querySelector('.console-toolbar');
-    
+
     isMinimized = !isMinimized;
-    
+
     if (isMinimized) {
-      savedState = { height: win.style.height };
+      savedStateMinimize = { height: win.style.height };
       content.style.display = 'none';
       toolbar.style.display = 'none';
       win.style.height = 'auto';
     } else {
       content.style.display = 'flex';
       toolbar.style.display = 'flex';
-      if (savedState?.height) win.style.height = savedState.height;
+      if (savedStateMinimize?.height) win.style.height = savedStateMinimize.height;
     }
     saveState();
   }
 
   function toggleMaximize() {
     const win = overlay.querySelector('.console-window');
-    
+
     isMaximized = !isMaximized;
-    
+
     if (isMaximized) {
-      savedState = {
+      savedStateMaximize = {
         left: win.style.left,
         top: win.style.top,
+        right: win.style.right,
+        bottom: win.style.bottom,
         width: win.style.width,
         height: win.style.height
       };
       win.style.left = '0';
       win.style.top = '0';
+      win.style.right = 'auto';
+      win.style.bottom = 'auto';
       win.style.width = '100vw';
       win.style.height = '100vh';
       win.classList.add('maximized');
     } else {
-      if (savedState) {
-        win.style.left = savedState.left || '20px';
-        win.style.top = savedState.top || '20px';
-        win.style.width = savedState.width || '600px';
-        win.style.height = savedState.height || '400px';
+      if (savedStateMaximize) {
+        win.style.left = savedStateMaximize.left || '';
+        win.style.top = savedStateMaximize.top || '';
+        win.style.right = savedStateMaximize.right || '20px';
+        win.style.bottom = savedStateMaximize.bottom || '20px';
+        win.style.width = savedStateMaximize.width || '600px';
+        win.style.height = savedStateMaximize.height || '400px';
       }
       win.classList.remove('maximized');
     }

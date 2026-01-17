@@ -126,7 +126,7 @@ zip -r console-overlay.zip . -x ".*" -x "__MACOSX" -x "*.git*"
 
 ## Version
 
-Aktuelle Version: **1.2.1** (siehe manifest.json)
+Aktuelle Version: **1.2.2** (siehe manifest.json)
 
 ## Kontakt
 
