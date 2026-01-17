@@ -1,6 +1,10 @@
-// This script runs in the page context to intercept console calls
+// This script runs in the page context to intercept console calls v1.2.3
 (function() {
   'use strict';
+
+  // Prevent double initialization
+  if (window.__consoleOverlayInitialized) return;
+  window.__consoleOverlayInitialized = true;
 
   // Create a buffer for logs before the overlay is ready
   window.__consoleOverlayBuffer = window.__consoleOverlayBuffer || [];
@@ -90,8 +94,48 @@
     sendToOverlay('error', message, stack);
   }, true);
 
+  // Intercept XMLHttpRequest errors
+  const originalXHROpen = XMLHttpRequest.prototype.open;
+  const originalXHRSend = XMLHttpRequest.prototype.send;
+
+  XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+    this._consoleOverlay = { method, url };
+    return originalXHROpen.apply(this, [method, url, ...rest]);
+  };
+
+  XMLHttpRequest.prototype.send = function(...args) {
+    this.addEventListener('loadend', function() {
+      if (this.status >= 400) {
+        const message = `${this._consoleOverlay?.method || 'XHR'} ${this._consoleOverlay?.url || 'unknown'}\n${this.status} (${this.statusText || 'Error'})`;
+        sendToOverlay('error', message, null);
+      }
+    });
+    return originalXHRSend.apply(this, args);
+  };
+
+  // Intercept Fetch API errors
+  const originalFetch = window.fetch;
+  window.fetch = function(input, init) {
+    const url = typeof input === 'string' ? input : input?.url || 'unknown';
+    const method = init?.method || (typeof input === 'object' ? input?.method : null) || 'GET';
+
+    return originalFetch.apply(this, arguments)
+      .then(response => {
+        if (!response.ok) {
+          const message = `${method} ${url}\n${response.status} (${response.statusText || 'Error'})`;
+          sendToOverlay('error', message, null);
+        }
+        return response;
+      })
+      .catch(error => {
+        const message = `${method} ${url}\nNetwork Error: ${error.message}`;
+        sendToOverlay('error', message, null);
+        throw error;
+      });
+  };
+
   // Send initial log
-  sendToOverlay('log', 'Console Overlay: Monitoring active', null);
+  sendToOverlay('log', 'Console Overlay: Monitoring active (+ Network)', null);
 
   // Listen for buffer requests
   window.addEventListener('message', (event) => {

@@ -1,6 +1,6 @@
 # Console Overlay - Chrome Extension
 
-[![Version](https://img.shields.io/badge/version-1.2.2-blue.svg)](https://github.com/pepperonas/console-overlay)
+[![Version](https://img.shields.io/badge/version-1.2.3-blue.svg)](https://github.com/pepperonas/console-overlay)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Chrome](https://img.shields.io/badge/Chrome-88%2B-yellow.svg)](https://www.google.com/chrome/)
 [![Edge](https://img.shields.io/badge/Edge-88%2B-blue.svg)](https://www.microsoft.com/edge)
@@ -111,6 +111,8 @@ Website Console → injected.js → postMessage → content.js → Overlay UI
 - `console.info()`, `console.debug()`
 - `window.onerror` (Unhandled Errors)
 - `window.onunhandledrejection` (Promise Rejections)
+- **XMLHttpRequest** Fehler (4xx, 5xx)
+- **Fetch API** Fehler (4xx, 5xx, Network Errors)
 
 ## Browser-Kompatibilität
 
@@ -128,6 +130,12 @@ Website Console → injected.js → postMessage → content.js → Overlay UI
 - Erfordert Page-Reload bei erstmaliger Aktivierung
 
 ## Changelog
+
+### v1.2.3 (2026-01-17)
+- **Neu**: Network Error Monitoring (HTTP 4xx/5xx)
+- **Neu**: XMLHttpRequest Fehler werden erfasst
+- **Neu**: Fetch API Fehler werden erfasst
+- **Fix**: Doppelte Initialisierung verhindert
 
 ### v1.2.2 (2026-01-17)
 - **Fix**: Alle 8 Resize-Handles funktionieren korrekt

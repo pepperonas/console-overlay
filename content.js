@@ -1,4 +1,4 @@
-// Content script v1.2.2 - Bug fixes for resize handles and state management
+// Content script v1.2.3 - Added network error monitoring
 (function() {
   'use strict';
 
