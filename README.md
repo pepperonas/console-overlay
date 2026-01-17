@@ -1,221 +1,166 @@
 # Console Overlay - Chrome Extension
 
+[![Version](https://img.shields.io/badge/version-1.2.2-blue.svg)](https://github.com/pepperonas/console-overlay)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Chrome](https://img.shields.io/badge/Chrome-88%2B-yellow.svg)](https://www.google.com/chrome/)
+[![Edge](https://img.shields.io/badge/Edge-88%2B-blue.svg)](https://www.microsoft.com/edge)
+
 Live Console Output Overlay für Chrome/Edge - Capture und kopiere Console Logs komfortabel!
+
+![Console Overlay Screenshot](https://raw.githubusercontent.com/pepperonas/console-overlay/main/icons/icon128.png)
 
 ## Features
 
-✨ **Live Console Monitoring**
-- Erfasst console.log, warn, error, info, debug in Echtzeit
+### Live Console Monitoring
+- Erfasst `console.log`, `warn`, `error`, `info`, `debug` in Echtzeit
 - Zeigt unbehandelte Fehler und Promise Rejections
 - Timestamps für jeden Log-Eintrag
+- Buffer für Logs vor Overlay-Aktivierung
 
-🪟 **Vollwertiges Fenster**
-- Drag & Drop zum Verschieben
-- Resize-Handle zum Größe ändern
-- Minimieren / Maximieren
-- Schließen-Button
-- Fensterposition wird gespeichert
+### Vollwertiges Fenster
+- **Drag & Drop** - Verschieben per Titelleiste
+- **Resize** - 8 Resize-Handles an allen Kanten und Ecken
+- **Minimieren/Maximieren** - Fenster-Controls wie bei Desktop-Apps
+- **Opacity-Slider** - Transparenz von 20% bis 100%
+- **State Persistence** - Position und Größe werden gespeichert
 
-🎯 **Intelligentes Filtering**
+### Intelligentes Filtering
 - Filter nach Log-Typ (Log, Info, Warn, Error, Debug)
-- Farbcodierte Log-Typen
+- Farbcodierte Log-Typen für schnelle Übersicht
 - Auto-Scroll zu neuen Einträgen
 
-📋 **Einfaches Kopieren**
+### Einfaches Kopieren
 - Einzelne Logs per Klick kopieren
 - "Copy All" für alle gefilterten Logs
 - Timestamps inkludiert
 
-🎨 **Modernes Dark Theme**
+### Modernes Dark Theme
 - VS Code inspiriertes Design
 - Professionelle Benutzeroberfläche
 - Smooth Animations
 
 ## Installation
 
-### Entwicklermodus
+### Option 1: Entwicklermodus (empfohlen)
 
-1. Chrome/Edge öffnen
-2. Navigiere zu `chrome://extensions/` (oder `edge://extensions/`)
-3. Aktiviere "Entwicklermodus" (oben rechts)
-4. Klicke auf "Entpackte Erweiterung laden"
-5. Wähle den `console-overlay` Ordner aus
+1. Repository klonen oder herunterladen:
+   ```bash
+   git clone https://github.com/pepperonas/console-overlay.git
+   ```
+2. Chrome/Edge öffnen
+3. Navigiere zu `chrome://extensions/` (oder `edge://extensions/`)
+4. Aktiviere **"Entwicklermodus"** (oben rechts)
+5. Klicke auf **"Entpackte Erweiterung laden"**
+6. Wähle den `console-overlay` Ordner aus
 
-### Als .zip
+### Option 2: ZIP-Installation
 
-Alternativ kannst du den Ordner als .zip packen und über "Erweiterungen verwalten" installieren.
+1. Lade das Repository als ZIP herunter
+2. Entpacke die Datei
+3. Folge Schritten 2-6 von Option 1
 
 ## Verwendung
 
 ### Aktivierung
 
 1. Klicke auf das Extension-Icon in der Toolbar
-2. Aktiviere den Toggle-Switch "Enable Overlay"
-3. Das Overlay erscheint unten rechts auf der Seite
+2. Aktiviere den Toggle-Switch **"Enable Overlay"**
+3. Das Overlay erscheint auf der Seite
 
 ### Fenster-Bedienung
 
-**Verschieben:**
-- Ziehe das Fenster an der Titelleiste
-
-**Größe ändern:**
-- Ziehe am Resize-Handle (unten rechts)
-- Minimum: 400x300px
-
-**Maximieren:**
-- Klick auf das □ Symbol
-- Oder: Doppelklick auf die Titelleiste
-
-**Minimieren:**
-- Klick auf das − Symbol
-- Zeigt nur die Titelleiste
-
-**Schließen:**
-- Klick auf das × Symbol
-- Oder: Deaktiviere den Toggle im Popup
+| Aktion | Beschreibung |
+|--------|--------------|
+| **Verschieben** | Ziehe das Fenster an der Titelleiste |
+| **Größe ändern** | Ziehe an einer der 8 Kanten/Ecken (Min: 400x300px) |
+| **Maximieren** | Klick auf □ oder Doppelklick auf Titelleiste |
+| **Minimieren** | Klick auf − (zeigt nur Titelleiste) |
+| **Schließen** | Klick auf × oder Toggle im Popup |
+| **Transparenz** | Opacity-Slider in der Toolbar |
 
 ### Logs verwalten
 
-**Filter anwenden:**
-- Nutze die Checkboxen in der Toolbar
-- Log / Info / Warn / Error / Debug
+- **Filter**: Checkboxen für Log / Info / Warn / Error / Debug
+- **Kopieren**: 📋 bei einzelnen Logs oder "Copy All"
+- **Löschen**: "Clear" Button
 
-**Logs kopieren:**
-- 📋 Symbol bei einzelnen Logs
-- "Copy All" Button für alle gefilterten Logs
-
-**Logs löschen:**
-- "Clear" Button in der Toolbar
-
-## Tastenkombinationen
-
-- **Doppelklick auf Titelleiste:** Maximieren/Wiederherstellen
-- **Strg+C auf Log:** Kopiert den Log-Text (im Overlay)
-
-## Technische Details
-
-### Architektur
-
-```
-manifest.json          → Extension Configuration
-background.js          → Service Worker
-content.js            → Main Logic & Overlay Management
-injected.js           → Console Interception
-overlay.css           → Styling
-popup.html/js         → Extension Control Panel
-```
-
-### Console Interception
-
-Das Plugin injiziert ein Script in die Seite, das die nativen Console-Methoden wrapped:
-- `console.log()` → weiterhin funktionsfähig
-- Zusätzlich: Nachricht an Content Script
-- Keine Performance-Einbußen
-
-### Erfasste Events
-
-- `console.log()`
-- `console.warn()`
-- `console.error()`
-- `console.info()`
-- `console.debug()`
-- `window.onerror` (Unhandled Errors)
-- `window.onunhandledrejection` (Promise Rejections)
-
-### Storage
-
-Das Plugin speichert:
-- Fensterposition
-- Fenstergröße
-- Minimiert/Maximiert Status
-- Aktivierungsstatus
-
-Gespeichert in `chrome.storage.local` - bleibt über Sessions hinweg erhalten.
-
-## Limitations
-
-- Max. 1000 Logs im Speicher (älteste werden automatisch entfernt)
-- Funktioniert nur auf Webseiten (nicht auf chrome:// oder edge:// Seiten)
-- Erfordert Reload bei erstmaliger Aktivierung
-
-## Browser-Kompatibilität
-
-✅ **Chrome** 88+
-✅ **Edge** 88+
-✅ **Brave** (Chromium-basiert)
-✅ **Opera** (Chromium-basiert)
-
-## Entwicklung
-
-### Projekt-Struktur
+## Architektur
 
 ```
 console-overlay/
-├── manifest.json
-├── background.js
-├── content.js
-├── injected.js
-├── overlay.css
-├── popup.html
-├── popup.js
-├── icons/
-│   ├── icon16.png
-│   ├── icon48.png
-│   └── icon128.png
-└── README.md
+├── manifest.json      # Extension-Konfiguration (Manifest V3)
+├── background.js      # Service Worker
+├── content.js         # Overlay-Management & UI
+├── injected.js        # Console-Interception im Page Context
+├── overlay.css        # Dark Theme Styling
+├── popup.html/js      # Extension-Popup
+├── icons/             # Extension-Icons
+├── demo.html          # Demo-Seite
+└── CLAUDE.md          # Entwickler-Guide
 ```
 
-### Debug-Modus
+### Datenfluss
 
-Console Output des Extensions:
-1. Rechtsklick auf Extension Icon → "Inspect Popup"
-2. Oder: chrome://extensions → "Details" → "Hintergrundseite prüfen"
+```
+Website Console → injected.js → postMessage → content.js → Overlay UI
+```
+
+### Erfasste Events
+
+- `console.log()`, `console.warn()`, `console.error()`
+- `console.info()`, `console.debug()`
+- `window.onerror` (Unhandled Errors)
+- `window.onunhandledrejection` (Promise Rejections)
+
+## Browser-Kompatibilität
+
+| Browser | Version | Status |
+|---------|---------|--------|
+| Chrome | 88+ | ✅ Vollständig unterstützt |
+| Edge | 88+ | ✅ Vollständig unterstützt |
+| Brave | Latest | ✅ Unterstützt |
+| Opera | Latest | ✅ Unterstützt |
+
+## Limitierungen
+
+- Max. 1000 Logs im Speicher (FIFO)
+- Nicht verfügbar auf `chrome://`, `edge://`, `about:` Seiten
+- Erfordert Page-Reload bei erstmaliger Aktivierung
 
 ## Changelog
 
-### Version 1.2.2 (2026-01-17)
-- Fix: Alle 8 Resize-Handles (nw, n, ne, w, e, sw, s, se) funktionieren jetzt korrekt
-- Fix: Minimize/Maximize State-Management getrennt (verhindert State-Überschreibung)
-- Fix: Popup zeigt Fehlermeldung auf chrome:// und edge:// Seiten
-- Fix: Fensterposition wird korrekt wiederhergestellt nach Maximize
+### v1.2.2 (2026-01-17)
+- **Fix**: Alle 8 Resize-Handles funktionieren korrekt
+- **Fix**: Separates State-Management für Minimize/Maximize
+- **Fix**: Popup-Validierung für System-Seiten
+- **Fix**: Fensterposition nach Maximize korrekt wiederhergestellt
 
-### Version 1.2.1 (2026-01-17)
+### v1.2.1 (2026-01-17)
 - Opacity-Slider hinzugefügt
 - Verbessertes State-Management
 
-### Version 1.0.0 (2026-01-17)
+### v1.0.0 (2026-01-17)
 - Initial Release
-- Live Console Monitoring
-- Drag & Drop Window
-- Resize Functionality
-- Minimize/Maximize
-- Log Filtering
-- Copy Functionality
-- Dark Theme
-- State Persistence
 
 ## Roadmap
 
-- [ ] Exportiere Logs als JSON/CSV
-- [ ] Suchfunktion in Logs
-- [ ] Regular Expression Filtering
+- [ ] Export als JSON/CSV
+- [ ] Suchfunktion
+- [ ] Regex-Filter
 - [ ] Keyboard Shortcuts
-- [ ] Themes (Light/Dark/Custom)
+- [ ] Light Theme
 - [ ] Network Request Logging
-- [ ] Performance Metrics
 
 ## Lizenz
 
 MIT License - Frei verwendbar für private und kommerzielle Projekte.
 
-## Kontakt
+## Autor
 
-**Martin Pfeffer**  
-Senior Software Developer  
-celox.io
-
-Bei Fragen oder Problemen, erstelle ein Issue oder kontaktiere mich direkt.
+**Martin Pfeffer**
+Senior Software Developer
+[celox.io](https://celox.io)
 
 ---
 
-**© 2026 Martin Pfeffer | celox.io**
+Bei Fragen oder Problemen: [Issue erstellen](https://github.com/pepperonas/console-overlay/issues)
