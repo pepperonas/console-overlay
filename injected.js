@@ -1,4 +1,4 @@
-// This script runs in the page context to intercept console calls v1.2.4
+// This script runs in the page context to intercept console calls v1.2.5
 (function() {
   'use strict';
 

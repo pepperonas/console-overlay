@@ -1,4 +1,4 @@
-// Content script v1.2.4
+// Content script v1.2.5
 (function() {
   'use strict';
 
@@ -396,17 +396,41 @@
       if (!result.overlayState) return;
       const win = overlay.querySelector('.console-window');
       const slider = overlay.querySelector('.opacity-slider');
+      const content = overlay.querySelector('.console-content');
+      const toolbar = overlay.querySelector('.console-toolbar');
       const state = result.overlayState;
-      
+
       if (state.left) win.style.left = state.left;
       if (state.top) win.style.top = state.top;
       if (state.width) win.style.width = state.width;
       if (state.height) win.style.height = state.height;
       if (state.opacity) win.style.opacity = state.opacity;
       if (state.opacityValue && slider) slider.value = state.opacityValue;
-      
-      if (state.isMinimized) toggleMinimize();
-      if (state.isMaximized) toggleMaximize();
+
+      // Apply minimized state directly (don't toggle)
+      if (state.isMinimized) {
+        isMinimized = true;
+        savedStateMinimize = { height: state.height || win.style.height };
+        content.style.display = 'none';
+        toolbar.style.display = 'none';
+        win.style.height = 'auto';
+      }
+
+      // Apply maximized state directly (don't toggle)
+      if (state.isMaximized && !state.isMinimized) {
+        isMaximized = true;
+        savedStateMaximize = {
+          left: state.left,
+          top: state.top,
+          width: state.width,
+          height: state.height
+        };
+        win.style.left = '0';
+        win.style.top = '0';
+        win.style.width = '100vw';
+        win.style.height = '100vh';
+        win.classList.add('maximized');
+      }
     });
   }
 

@@ -1,6 +1,6 @@
 # Console Overlay - Chrome Extension
 
-[![Version](https://img.shields.io/badge/version-1.2.4-blue.svg)](https://github.com/pepperonas/console-overlay)
+[![Version](https://img.shields.io/badge/version-1.2.5-blue.svg)](https://github.com/pepperonas/console-overlay)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Chrome](https://img.shields.io/badge/Chrome-88%2B-yellow.svg)](https://www.google.com/chrome/)
 [![Edge](https://img.shields.io/badge/Edge-88%2B-blue.svg)](https://www.microsoft.com/edge)
@@ -130,6 +130,10 @@ Website Console → injected.js → postMessage → content.js → Overlay UI
 - Erfordert Page-Reload bei erstmaliger Aktivierung
 
 ## Changelog
+
+### v1.2.5 (2026-01-17)
+- **Fix**: Minimized/Maximized State wird korrekt geladen
+- **Fix**: Logs werden nach Restore korrekt angezeigt
 
 ### v1.2.4 (2026-01-17)
 - Version sync across all files
