@@ -1,135 +1,74 @@
-# Console Overlay - Development Guide
+# CLAUDE.md
 
-## Projektübersicht
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Console Overlay ist eine Chrome/Edge Browser-Extension zur Live-Überwachung von Console-Ausgaben. Sie ermöglicht Entwicklern das Anzeigen, Filtern und Kopieren von Console-Logs in einem praktischen Overlay-Fenster.
+## Project Overview
 
-## Architektur
+Console Overlay is a Chrome/Edge Browser Extension (Manifest V3) for live console output monitoring. It intercepts all 15 console methods (`log/warn/error/info/debug/table/dir/dirxml/trace/assert/count/countReset/time/timeLog/timeEnd/group/groupCollapsed/groupEnd/clear`), unhandled errors, promise rejections, and network errors (HTTP 4xx/5xx) and displays them in a draggable, resizable overlay window.
 
-```
-console-overlay/
-├── manifest.json       # Extension-Konfiguration (Manifest V3)
-├── background.js       # Service Worker für Extension-Events
-├── content.js          # Hauptlogik: Overlay-Management, UI, Events
-├── injected.js         # Console-Interception im Page Context
-├── overlay.css         # Styling (Dark Theme, VS Code-inspiriert)
-├── popup.html/js       # Extension-Popup mit Toggle-Switch
-├── icons/              # Extension-Icons (16, 48, 128px)
-├── demo.html           # Demo-Seite zum Testen
-└── test.html           # Test-Seite für Entwicklung
-```
+## Build & Development
 
-## Kernkomponenten
-
-### content.js (Hauptlogik)
-- **Overlay-Erstellung**: Erstellt das UI-Fenster mit Drag & Drop, Resize
-- **Event-Handling**: Mouse-Events für Verschieben/Größenänderung
-- **State-Management**: Speichert Fensterposition in `chrome.storage.local`
-- **Log-Rendering**: Filtert und zeigt Logs an
-- **Message-Handling**: Empfängt Logs von `injected.js` via `postMessage`
-
-### injected.js (Console-Interception)
-- **Console-Wrapping**: Überschreibt `console.log/warn/error/info/debug`
-- **Buffer**: Speichert bis zu 1000 Logs vor Overlay-Aktivierung
-- **Error-Handling**: Fängt `window.onerror` und `unhandledrejection`
-- **Message-Bridge**: Sendet Logs via `postMessage` an Content Script
-
-### overlay.css
-- **Dark Theme**: VS Code-inspiriertes Design
-- **Animations**: Smooth Transitions für UI-Elemente
-- **Responsive**: Resize-Handles an allen Kanten
-
-## Entwicklung
-
-### Lokale Installation
-```bash
-# 1. Repo klonen
-git clone https://github.com/pepperonas/console-overlay.git
-
-# 2. In Chrome/Edge laden
-# chrome://extensions/ → Entwicklermodus → "Entpackte Erweiterung laden"
-```
-
-### Debugging
-- **Content Script**: DevTools → Console auf der Seite
-- **Background**: chrome://extensions → "Service Worker inspizieren"
-- **Popup**: Rechtsklick auf Icon → "Popup prüfen"
-
-### Testen
-- `demo.html` im Browser öffnen
-- Extension aktivieren
-- Console-Ausgaben werden im Overlay angezeigt
-
-## Wichtige Patterns
-
-### Message-Flow
-```
-Webseite Console → injected.js → postMessage → content.js → Overlay UI
-```
-
-### State Persistence
-```javascript
-// Speichern
-chrome.storage.local.set({ overlayState: {...} });
-
-// Laden
-chrome.storage.local.get(['overlayState'], (result) => {...});
-```
-
-### Log-Format
-```javascript
-{
-  type: 'log' | 'warn' | 'error' | 'info' | 'debug',
-  message: string,
-  timestamp: ISO-String,
-  stack: string | null
-}
-```
-
-## Grenzen & Limitierungen
-
-- **Max 1000 Logs**: Ältere werden automatisch entfernt
-- **Keine chrome:// Seiten**: Extension kann dort nicht injizieren
-- **Erstaktivierung**: Erfordert Page-Reload für Console-Interception
-
-## Code-Konventionen
-
-- **Vanilla JS**: Keine Frameworks/Libraries
-- **IIFE-Pattern**: Selbstausführende Funktionen zur Isolation
-- **'use strict'**: Strict Mode in allen Dateien
-- **Event-Delegation**: Wo möglich für Performance
-
-## Häufige Änderungen
-
-### Neuen Log-Typ hinzufügen
-1. `injected.js`: `interceptConsole()` erweitern
-2. `content.js`: Filter-Checkbox hinzufügen
-3. `overlay.css`: Styling für neuen Typ
-
-### UI-Element hinzufügen
-1. `content.js`: HTML in `createOverlay()` ergänzen
-2. `overlay.css`: Styling hinzufügen
-3. Event-Listener in `attachEventListeners()` registrieren
-
-### Storage-Wert hinzufügen
-1. `saveState()`: Neuen Wert speichern
-2. `loadState()`: Wert beim Start laden
-
-## Build & Release
-
-Kein Build-Prozess erforderlich. Direkt als entpackte Extension laden oder als .zip verpacken für Distribution.
+No build process. Load directly as unpacked extension in `chrome://extensions/` (developer mode).
 
 ```bash
-# ZIP für Release erstellen
+# ZIP for release
 zip -r console-overlay.zip . -x ".*" -x "__MACOSX" -x "*.git*"
 ```
 
-## Version
+Testing: Open `demo.html` in browser with extension loaded.
 
-Aktuelle Version: **1.2.5** (siehe manifest.json)
+## Architecture
 
-## Kontakt
+### Message Flow
 
-**Martin Pfeffer**
-martin.pfeffer@celox.io
-https://celox.io
+```
+Website Console → injected.js → postMessage → content.js → Overlay UI
+```
+
+### Component Responsibilities
+
+- **injected.js** — Runs in **page context** via `world: "MAIN"` (injected synchronously before page scripts). Wraps all native console methods and network APIs (XHR, fetch). Buffers up to 1000 logs. Sends log data via `window.postMessage` to content script. Uses `window.__consoleOverlayInitialized` guard against double init.
+
+- **content.js** — Runs as **content script**. Creates and manages the overlay DOM (inside an IIFE). Handles drag/drop, resize (8 handles), minimize/maximize, opacity. Persists window state (position, size, filters) to `chrome.storage.local`. Receives logs from injected.js via `postMessage` listener.
+
+- **background.js** — Minimal service worker. Sets default `isEnabled: false` on install. Responds to `getState` messages from popup.
+
+- **popup.js / popup.html** — Extension popup with toggle switch. Sends `toggleOverlay` message to content script via `chrome.tabs.sendMessage`. Validates tab URL (no `chrome://`, `edge://`, `about:` pages).
+
+- **overlay.css** — VS Code-inspired dark theme. All styles prefixed with `.console-overlay` for isolation.
+
+### Key State
+
+```javascript
+// Log format passed between injected.js and content.js
+{ type: 'log'|'warn'|'error'|'info'|'debug', message: string, timestamp: ISO-string, stack: string|null }
+
+// Persisted in chrome.storage.local
+{ isEnabled: bool, overlayState: { left, top, width, height, opacity, filters, isMinimized, isMaximized } }
+```
+
+## Code Conventions
+
+- **Vanilla JS only** — no frameworks or libraries
+- **IIFE pattern** — all files wrapped in self-executing functions for isolation
+- **`'use strict'`** in all files
+- **Version string** appears in `manifest.json`, `content.js`, `injected.js`, `popup.js`, and `CLAUDE.md` — update all when bumping
+
+## Common Modification Patterns
+
+### Adding a new log type
+1. `injected.js`: Extend `interceptConsole()` with new console method wrapper
+2. `content.js`: Add filter checkbox in `createOverlay()` HTML
+3. `overlay.css`: Add color styling for the new type
+
+### Adding a UI element
+1. `content.js`: Add HTML in `createOverlay()`, register listener in `attachEventListeners()`
+2. `overlay.css`: Add styling
+
+### Adding persisted state
+1. `content.js`: Add to `saveState()` and `loadState()`
+
+## Limitations
+
+- Max 1000 logs (FIFO buffer)
+- Cannot run on `chrome://`, `edge://`, `about:` pages

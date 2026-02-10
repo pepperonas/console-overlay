@@ -1,6 +1,6 @@
 # Console Overlay - Chrome Extension
 
-[![Version](https://img.shields.io/badge/version-1.2.5-blue.svg)](https://github.com/pepperonas/console-overlay)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/pepperonas/console-overlay)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Chrome](https://img.shields.io/badge/Chrome-88%2B-yellow.svg)](https://www.google.com/chrome/)
 [![Edge](https://img.shields.io/badge/Edge-88%2B-blue.svg)](https://www.microsoft.com/edge)
@@ -12,10 +12,10 @@ Live Console Output Overlay für Chrome/Edge - Capture und kopiere Console Logs 
 ## Features
 
 ### Live Console Monitoring
-- Erfasst `console.log`, `warn`, `error`, `info`, `debug` in Echtzeit
+- Erfasst **alle 15 Console-Methoden**: `log`, `warn`, `error`, `info`, `debug`, `table`, `dir`, `dirxml`, `trace`, `assert`, `count`/`countReset`, `time`/`timeLog`/`timeEnd`, `group`/`groupCollapsed`/`groupEnd`, `clear`
 - Zeigt unbehandelte Fehler und Promise Rejections
 - Timestamps für jeden Log-Eintrag
-- Buffer für Logs vor Overlay-Aktivierung
+- Synchrone Injection — kein Log geht verloren, auch nicht vor Overlay-Aktivierung
 
 ### Vollwertiges Fenster
 - **Drag & Drop** - Verschieben per Titelleiste
@@ -107,12 +107,17 @@ Website Console → injected.js → postMessage → content.js → Overlay UI
 
 ### Erfasste Events
 
-- `console.log()`, `console.warn()`, `console.error()`
-- `console.info()`, `console.debug()`
-- `window.onerror` (Unhandled Errors)
-- `window.onunhandledrejection` (Promise Rejections)
-- **XMLHttpRequest** Fehler (4xx, 5xx)
-- **Fetch API** Fehler (4xx, 5xx, Network Errors)
+| Kategorie | Methoden |
+|-----------|----------|
+| **Standard** | `log`, `warn`, `error`, `info`, `debug` |
+| **Inspektion** | `table`, `dir`, `dirxml`, `trace` |
+| **Assertions** | `assert` (nur bei Fehlschlag) |
+| **Counter** | `count`, `countReset` |
+| **Timer** | `time`, `timeLog`, `timeEnd` |
+| **Gruppen** | `group` (▼), `groupCollapsed` (▶), `groupEnd` |
+| **Sonstige** | `clear` ("Console was cleared") |
+| **Fehler** | `window.onerror`, `unhandledrejection` |
+| **Netzwerk** | XHR Fehler (4xx/5xx), Fetch API Fehler |
 
 ## Browser-Kompatibilität
 
@@ -127,9 +132,13 @@ Website Console → injected.js → postMessage → content.js → Overlay UI
 
 - Max. 1000 Logs im Speicher (FIFO)
 - Nicht verfügbar auf `chrome://`, `edge://`, `about:` Seiten
-- Erfordert Page-Reload bei erstmaliger Aktivierung
 
 ## Changelog
+
+### v1.3.0 (2026-02-10)
+- **Neu**: Alle 15 Console-Methoden werden abgefangen (`table`, `dir`, `dirxml`, `trace`, `assert`, `count`/`countReset`, `time`/`timeLog`/`timeEnd`, `group`/`groupCollapsed`/`groupEnd`, `clear`)
+- **Neu**: Synchrone Injection via Manifest V3 `world: "MAIN"` — keine Race Condition mehr, kein Page-Reload nötig
+- **Fix**: Duplikate beim Overlay-Aktivieren beseitigt (Buffer als Single Source of Truth)
 
 ### v1.2.5 (2026-01-17)
 - **Fix**: Minimized/Maximized State wird korrekt geladen

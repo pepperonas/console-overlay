@@ -1,4 +1,4 @@
-// This script runs in the page context to intercept console calls v1.2.5
+// This script runs in the page context to intercept console calls v1.3.0
 (function() {
   'use strict';
 
@@ -15,7 +15,21 @@
     warn: console.warn.bind(console),
     error: console.error.bind(console),
     info: console.info.bind(console),
-    debug: console.debug.bind(console)
+    debug: console.debug.bind(console),
+    table: console.table.bind(console),
+    dir: console.dir.bind(console),
+    dirxml: console.dirxml.bind(console),
+    trace: console.trace.bind(console),
+    assert: console.assert.bind(console),
+    count: console.count.bind(console),
+    countReset: console.countReset.bind(console),
+    time: console.time.bind(console),
+    timeLog: console.timeLog.bind(console),
+    timeEnd: console.timeEnd.bind(console),
+    group: console.group.bind(console),
+    groupCollapsed: console.groupCollapsed.bind(console),
+    groupEnd: console.groupEnd.bind(console),
+    clear: console.clear.bind(console)
   };
 
   function formatArgs(args) {
@@ -79,6 +93,91 @@
   interceptConsole('error', 'error');
   interceptConsole('info', 'info');
   interceptConsole('debug', 'debug');
+
+  // Generic interceptions (table, dir, dirxml)
+  interceptConsole('table', 'log');
+  interceptConsole('dir', 'log');
+  interceptConsole('dirxml', 'log');
+
+  // console.trace() — include stack trace
+  console.trace = function(...args) {
+    originalConsole.trace(...args);
+    const label = args.length > 0 ? formatArgs(args) : 'console.trace';
+    const stack = new Error().stack;
+    sendToOverlay('debug', 'Trace: ' + label, stack);
+  };
+
+  // console.assert() — only log on failure
+  console.assert = function(condition, ...args) {
+    originalConsole.assert(condition, ...args);
+    if (!condition) {
+      const message = args.length > 0 ? 'Assertion failed: ' + formatArgs(args) : 'Assertion failed';
+      sendToOverlay('error', message, new Error().stack);
+    }
+  };
+
+  // console.count() / console.countReset()
+  const counters = {};
+  console.count = function(label) {
+    originalConsole.count(label);
+    const key = label !== undefined ? String(label) : 'default';
+    counters[key] = (counters[key] || 0) + 1;
+    sendToOverlay('log', key + ': ' + counters[key], null);
+  };
+  console.countReset = function(label) {
+    originalConsole.countReset(label);
+    const key = label !== undefined ? String(label) : 'default';
+    counters[key] = 0;
+    sendToOverlay('log', key + ': 0', null);
+  };
+
+  // console.time() / console.timeLog() / console.timeEnd()
+  const timers = {};
+  console.time = function(label) {
+    originalConsole.time(label);
+    const key = label !== undefined ? String(label) : 'default';
+    timers[key] = performance.now();
+  };
+  console.timeLog = function(label, ...args) {
+    originalConsole.timeLog(label, ...args);
+    const key = label !== undefined ? String(label) : 'default';
+    if (timers[key] !== undefined) {
+      const elapsed = (performance.now() - timers[key]).toFixed(3);
+      const extra = args.length > 0 ? ' ' + formatArgs(args) : '';
+      sendToOverlay('log', key + ': ' + elapsed + 'ms' + extra, null);
+    }
+  };
+  console.timeEnd = function(label) {
+    originalConsole.timeEnd(label);
+    const key = label !== undefined ? String(label) : 'default';
+    if (timers[key] !== undefined) {
+      const elapsed = (performance.now() - timers[key]).toFixed(3);
+      sendToOverlay('log', key + ': ' + elapsed + 'ms', null);
+      delete timers[key];
+    }
+  };
+
+  // console.group() / console.groupCollapsed() / console.groupEnd()
+  console.group = function(...args) {
+    originalConsole.group(...args);
+    const label = args.length > 0 ? formatArgs(args) : '';
+    sendToOverlay('log', '▼ ' + label, null);
+  };
+  console.groupCollapsed = function(...args) {
+    originalConsole.groupCollapsed(...args);
+    const label = args.length > 0 ? formatArgs(args) : '';
+    sendToOverlay('log', '▶ ' + label, null);
+  };
+  console.groupEnd = function() {
+    originalConsole.groupEnd();
+    // No log output
+  };
+
+  // console.clear()
+  console.clear = function() {
+    originalConsole.clear();
+    sendToOverlay('info', 'Console was cleared', null);
+  };
 
   // Intercept unhandled errors
   window.addEventListener('error', (event) => {

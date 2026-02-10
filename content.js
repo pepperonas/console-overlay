@@ -1,4 +1,4 @@
-// Content script v1.2.5
+// Content script v1.3.0
 (function() {
   'use strict';
 
@@ -22,14 +22,6 @@
   let isMaximized = false;
   let savedStateMinimize = null;
   let savedStateMaximize = null;
-
-  // Inject script
-  function injectScript() {
-    const script = document.createElement('script');
-    script.src = chrome.runtime.getURL('injected.js');
-    script.onload = () => script.remove();
-    (document.head || document.documentElement).appendChild(script);
-  }
 
   // Request buffered logs from injected script
   function loadBufferedLogs() {
@@ -436,26 +428,22 @@
 
   function toggleOverlay() {
     isEnabled = !isEnabled;
-    
+
     if (isEnabled) {
       if (!overlay) createOverlay();
       overlay.style.display = 'block';
       isReady = true;
-      
-      // Request buffered logs
+
+      // Discard queued messages — buffer request will provide the complete history
+      messageQueue = [];
+
+      // Request buffered logs (single source of truth)
       loadBufferedLogs();
-      
-      // Process queued messages
-      setTimeout(() => {
-        while (messageQueue.length > 0) {
-          addLogDirect(messageQueue.shift());
-        }
-      }, 100);
     } else {
       if (overlay) overlay.style.display = 'none';
       isReady = false;
     }
-    
+
     chrome.storage.local.set({ isEnabled });
   }
 
@@ -485,8 +473,6 @@
     }
   });
 
-  injectScript();
-  
   chrome.storage.local.get(['isEnabled'], (result) => {
     if (result.isEnabled) toggleOverlay();
   });
