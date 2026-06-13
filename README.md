@@ -1,11 +1,28 @@
 # Console Overlay - Chrome Extension
 
-[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/pepperonas/console-overlay)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Chrome](https://img.shields.io/badge/Chrome-88%2B-yellow.svg)](https://www.google.com/chrome/)
-[![Edge](https://img.shields.io/badge/Edge-88%2B-blue.svg)](https://www.microsoft.com/edge)
+<!-- Project -->
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/pepperonas/console-overlay/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Maintained](https://img.shields.io/badge/maintained-yes-brightgreen.svg)](https://github.com/pepperonas/console-overlay/commits/main)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg)](https://github.com/pepperonas/console-overlay/pulls)
+[![GitHub Issues](https://img.shields.io/github/issues/pepperonas/console-overlay.svg)](https://github.com/pepperonas/console-overlay/issues)
+[![GitHub Stars](https://img.shields.io/github/stars/pepperonas/console-overlay.svg?style=social)](https://github.com/pepperonas/console-overlay/stargazers)
 
-Live Console Output Overlay für Chrome/Edge - Capture und kopiere Console Logs komfortabel!
+<!-- Tech stack -->
+[![Manifest V3](https://img.shields.io/badge/Manifest-V3-4285F4.svg?logo=googlechrome&logoColor=white)](https://developer.chrome.com/docs/extensions/develop/migrate)
+[![JavaScript](https://img.shields.io/badge/JavaScript-Vanilla-F7DF1E.svg?logo=javascript&logoColor=black)](https://developer.mozilla.org/docs/Web/JavaScript)
+[![Dependencies](https://img.shields.io/badge/dependencies-none-success.svg)](#architektur)
+[![No Build Step](https://img.shields.io/badge/build-none-lightgrey.svg)](#installation)
+[![Shadow DOM](https://img.shields.io/badge/Shadow%20DOM-isolated-9c27b0.svg)](https://developer.mozilla.org/docs/Web/API/Web_components/Using_shadow_DOM)
+
+<!-- Compatibility -->
+[![Chrome](https://img.shields.io/badge/Chrome-111%2B-FFCD46.svg?logo=googlechrome&logoColor=white&labelColor=4285F4)](https://www.google.com/chrome/)
+[![Edge](https://img.shields.io/badge/Edge-111%2B-0078D7.svg?logo=microsoftedge&logoColor=white)](https://www.microsoft.com/edge)
+[![Brave](https://img.shields.io/badge/Brave-supported-FB542B.svg?logo=brave&logoColor=white)](https://brave.com/)
+[![Opera](https://img.shields.io/badge/Opera-supported-FF1B2D.svg?logo=opera&logoColor=white)](https://www.opera.com/)
+[![Platform](https://img.shields.io/badge/platform-desktop-informational.svg)](#browser-kompatibilität)
+
+Live Console Output Overlay für Chrome/Edge — erfasst Console-Logs, Fehler, Promise-Rejections und Netzwerkfehler und zeigt sie in einem verschiebbaren, vollständig isolierten Overlay-Fenster. Kein Build, keine Dependencies, kein DevTools-Wechsel.
 
 ![Console Overlay Screenshot](https://raw.githubusercontent.com/pepperonas/console-overlay/main/icons/icon128.png)
 
@@ -13,31 +30,51 @@ Live Console Output Overlay für Chrome/Edge - Capture und kopiere Console Logs 
 
 ### Live Console Monitoring
 - Erfasst **alle 15 Console-Methoden**: `log`, `warn`, `error`, `info`, `debug`, `table`, `dir`, `dirxml`, `trace`, `assert`, `count`/`countReset`, `time`/`timeLog`/`timeEnd`, `group`/`groupCollapsed`/`groupEnd`, `clear`
-- Zeigt unbehandelte Fehler und Promise Rejections
+- Zeigt unbehandelte Fehler (`window.onerror`) und Promise Rejections
+- **Netzwerkfehler**: fehlgeschlagene XHR- und Fetch-Requests (HTTP 4xx/5xx)
 - Timestamps für jeden Log-Eintrag
-- Synchrone Injection — kein Log geht verloren, auch nicht vor Overlay-Aktivierung
+- Synchrone Injection via `world: "MAIN"` — kein Log geht verloren, auch nicht vor Overlay-Aktivierung
+
+### DevTools-genaue Formatierung *(v1.4.0)*
+- **`Error`-Objekte** zeigen Stack/Message statt `{}`
+- **DOM-Nodes** werden als Tag-Selektor dargestellt (`<div#id.class>`)
+- **Zirkuläre Objekte** sauber als `[Circular]` aufgelöst
+- **printf-Specifier** (`%s`, `%d`, `%i`, `%f`, `%o`, `%O`, `%c`, `%%`) werden ausgewertet
+- Sehr große Payloads werden bei 8000 Zeichen gekürzt (Memory-Schutz)
+
+### Vollständige Style-Isolation *(v1.4.0)*
+- Overlay läuft in einem **Shadow DOM** — Seiten-CSS kann das Overlay nicht beeinflussen, und umgekehrt
+- Identisches Erscheinungsbild auf jeder Website (auch bei aggressivem globalem CSS, z. B. GitHub)
+
+### Performance *(v1.4.0)*
+- **Inkrementelles Rendering** — O(1) pro Log statt komplettem Neuaufbau
+- Kein Einfrieren mehr bei hoher Log-Frequenz; DOM-Knoten auf 1000 begrenzt
+- **Smart-Autoscroll** — folgt nur, wenn man bereits am Ende ist
 
 ### Vollwertiges Fenster
-- **Drag & Drop** - Verschieben per Titelleiste
-- **Resize** - 8 Resize-Handles an allen Kanten und Ecken
-- **Minimieren/Maximieren** - Fenster-Controls wie bei Desktop-Apps
-- **Opacity-Slider** - Transparenz von 20% bis 100%
-- **State Persistence** - Position und Größe werden gespeichert
+- **Drag & Drop** — Verschieben per Titelleiste
+- **Resize** — 8 Resize-Handles an allen Kanten und Ecken (Min: 400×300px)
+- **Minimieren/Maximieren** — Fenster-Controls wie bei Desktop-Apps
+- **Opacity-Slider** — Transparenz von 20 % bis 100 %
+- **State Persistence** — Position, Größe, Opacity, **Filter** und Min/Max-Zustand werden gespeichert
+- Korrektes Wiederherstellen der Fenstergröße nach Maximieren — auch nach Reload *(v1.4.0)*
+
+### Bedienung & Komfort
+- **Keyboard-Shortcut** `Alt+Shift+L` zum Umschalten — anpassbar unter `chrome://extensions/shortcuts` *(v1.4.0)*
+- Toggle per Extension-Popup; Popup zeigt den aktiv konfigurierten Shortcut
 
 ### Intelligentes Filtering
-- Filter nach Log-Typ (Log, Info, Warn, Error, Debug)
+- Filter nach Log-Typ (Log, Info, Warn, Error, Debug) — Auswahl bleibt erhalten
 - Farbcodierte Log-Typen für schnelle Übersicht
-- Auto-Scroll zu neuen Einträgen
 
 ### Einfaches Kopieren
-- Einzelne Logs per Klick kopieren
-- "Copy All" für alle gefilterten Logs
-- Timestamps inkludiert
+- Einzelne Logs per Klick kopieren (📋)
+- "Copy All" für alle gefilterten Logs, inkl. Timestamps
+- **Clipboard-Fallback** für HTTP-Seiten ohne `navigator.clipboard` *(v1.4.0)*
 
-### Modernes Dark Theme
-- VS Code inspiriertes Design
-- Professionelle Benutzeroberfläche
-- Smooth Animations
+### Barrierefreiheit & Theme *(v1.4.0)*
+- `aria-label`/`title` an allen Controls, `role="log"` mit `aria-live` für den Log-Bereich
+- VS-Code-inspiriertes Dark Theme mit dezenten Animationen
 
 ## Installation
 
@@ -63,9 +100,11 @@ Live Console Output Overlay für Chrome/Edge - Capture und kopiere Console Logs 
 
 ### Aktivierung
 
-1. Klicke auf das Extension-Icon in der Toolbar
-2. Aktiviere den Toggle-Switch **"Enable Overlay"**
+1. Klicke auf das Extension-Icon in der Toolbar **oder** drücke `Alt+Shift+L`
+2. Aktiviere den Toggle-Switch **"Enable Overlay"** (im Popup)
 3. Das Overlay erscheint auf der Seite
+
+> Der Shortcut lässt sich unter `chrome://extensions/shortcuts` frei anpassen.
 
 ### Fenster-Bedienung
 
@@ -88,12 +127,12 @@ Live Console Output Overlay für Chrome/Edge - Capture und kopiere Console Logs 
 
 ```
 console-overlay/
-├── manifest.json      # Extension-Konfiguration (Manifest V3)
-├── background.js      # Service Worker
-├── content.js         # Overlay-Management & UI
-├── injected.js        # Console-Interception im Page Context
-├── overlay.css        # Dark Theme Styling
-├── popup.html/js      # Extension-Popup
+├── manifest.json      # Extension-Konfiguration (Manifest V3, commands, web_accessible_resources)
+├── background.js      # Service Worker (Default-State + Keyboard-Shortcut-Forwarding)
+├── content.js         # Overlay-UI im Shadow DOM, inkrementelles Rendering, State-Persistenz
+├── injected.js        # Console- & Netzwerk-Interception im Page Context (world: MAIN)
+├── overlay.css        # Dark Theme Styling (in den Shadow Root geladen)
+├── popup.html/js      # Extension-Popup (Toggle + Shortcut-Anzeige)
 ├── icons/             # Extension-Icons
 ├── demo.html          # Demo-Seite
 └── CLAUDE.md          # Entwickler-Guide
@@ -123,17 +162,27 @@ Website Console → injected.js → postMessage → content.js → Overlay UI
 
 | Browser | Version | Status |
 |---------|---------|--------|
-| Chrome | 88+ | ✅ Vollständig unterstützt |
-| Edge | 88+ | ✅ Vollständig unterstützt |
+| Chrome | 111+ | ✅ Vollständig unterstützt (benötigt `world: "MAIN"`) |
+| Edge | 111+ | ✅ Vollständig unterstützt |
 | Brave | Latest | ✅ Unterstützt |
 | Opera | Latest | ✅ Unterstützt |
 
 ## Limitierungen
 
-- Max. 1000 Logs im Speicher (FIFO)
-- Nicht verfügbar auf `chrome://`, `edge://`, `about:` Seiten
+- Benötigt Chrome/Edge **111+** (wegen `world: "MAIN"` Content-Script-Injection)
+- Max. 1000 Logs im Speicher (FIFO), Nachrichten >8000 Zeichen werden gekürzt
+- Nicht verfügbar auf `chrome://`, `edge://`, `about:` und Extension-Seiten
 
 ## Changelog
+
+### v1.4.0 (2026-06-13)
+- **Neu**: Shadow-DOM-Isolation — Overlay-Styling bleibt auf jeder Seite identisch, kein CSS-Bleed mehr (rein/raus)
+- **Neu**: Keyboard-Shortcut zum Umschalten (`Alt+Shift+L`, anpassbar unter `chrome://extensions/shortcuts`)
+- **Perf**: Inkrementelles Rendering (O(1) pro Log statt Full-Rebuild) — kein Einfrieren mehr bei hoher Log-Frequenz
+- **Fix**: `Error`-Objekte zeigen jetzt Stack/Message statt `{}`; DOM-Nodes, zirkuläre Objekte und printf-Specifier (`%s %d %o %c`) werden korrekt formatiert
+- **Fix**: Un-Maximieren stellt nach Reload die echte vorherige Fenstergröße wieder her
+- **Neu**: Filter-Zustände werden persistiert; Clipboard-Fallback für HTTP-Seiten; A11y-Labels
+- **Cleanup**: Überflüssige `scripting`-Permission entfernt; `minimum_chrome_version` gesetzt; Nachrichten >8000 Zeichen werden gekürzt
 
 ### v1.3.0 (2026-02-10)
 - **Neu**: Alle 15 Console-Methoden werden abgefangen (`table`, `dir`, `dirxml`, `trace`, `assert`, `count`/`countReset`, `time`/`timeLog`/`timeEnd`, `group`/`groupCollapsed`/`groupEnd`, `clear`)
@@ -171,7 +220,7 @@ Website Console → injected.js → postMessage → content.js → Overlay UI
 - [ ] Export als JSON/CSV
 - [ ] Suchfunktion
 - [ ] Regex-Filter
-- [ ] Keyboard Shortcuts
+- [x] Keyboard Shortcuts
 - [ ] Light Theme
 - [ ] Network Request Logging
 

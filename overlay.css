@@ -1,14 +1,16 @@
-/* Console Overlay Styles */
-.console-overlay {
-  position: fixed;
-  z-index: 2147483647;
+/* Console Overlay Styles — loaded inside a Shadow DOM (fully isolated) */
+:host {
+  all: initial;
   pointer-events: none;
-  display: none;
 }
 
-.console-overlay * {
-  pointer-events: auto;
+* {
   box-sizing: border-box;
+}
+
+.console-window,
+.console-notification {
+  pointer-events: auto;
 }
 
 .console-window {
@@ -357,7 +359,7 @@
   opacity: 0;
   transition: all 0.3s ease;
   pointer-events: none;
-  z-index: 2147483648;
+  z-index: 2147483647;
 }
 
 .console-notification.show {

@@ -1,12 +1,15 @@
-// Content script v1.3.0
+// Content script v1.4.0
 (function() {
   'use strict';
 
-  let overlay = null;
+  const MAX_LOGS = 1000;
+
+  let host = null;        // shadow host element in the page tree
+  let root = null;        // shadow root containing the overlay UI
   let isEnabled = false;
   let logs = [];
-  let messageQueue = [];
   let isReady = false;
+  let loadingBuffer = false;
 
   // Dragging
   let isDragging = false;
@@ -23,68 +26,88 @@
   let savedStateMinimize = null;
   let savedStateMaximize = null;
 
+  // Current geometry remembered separately from the maximized fullscreen geometry,
+  // so un-maximizing (even after a reload) restores the real previous size.
+  let normalGeometry = null;
+
+  const FILTER_TYPES = ['log', 'info', 'warn', 'error', 'debug'];
+
+  function $(sel) { return root ? root.querySelector(sel) : null; }
+  function $all(sel) { return root ? root.querySelectorAll(sel) : []; }
+
   // Request buffered logs from injected script
   function loadBufferedLogs() {
-    // Post message to request buffer
     window.postMessage({
       type: 'CONSOLE_OVERLAY_REQUEST_BUFFER',
       source: 'console-overlay-content'
     }, '*');
   }
 
-  // Create overlay
+  // Create overlay inside a Shadow DOM so page CSS can never bleed in (or out).
   function createOverlay() {
-    overlay = document.createElement('div');
-    overlay.id = 'console-overlay-container';
-    overlay.className = 'console-overlay';
-    
-    overlay.innerHTML = `
-      <div class="console-window">
-        <div class="console-titlebar">
-          <span class="console-title">Console Overlay</span>
-          <div class="console-controls">
-            <button class="console-btn console-minimize">−</button>
-            <button class="console-btn console-maximize">□</button>
-            <button class="console-btn console-close">×</button>
-          </div>
-        </div>
-        <div class="console-toolbar">
-          <button class="console-toolbar-btn console-clear">Clear</button>
-          <button class="console-toolbar-btn console-copy">Copy All</button>
-          <div class="console-opacity-control">
-            <label><span>🔆</span><input type="range" class="opacity-slider" min="20" max="100" value="95" step="5"></label>
-          </div>
-          <div class="console-filters">
-            <label><input type="checkbox" class="filter-log" checked> Log</label>
-            <label><input type="checkbox" class="filter-info" checked> Info</label>
-            <label><input type="checkbox" class="filter-warn" checked> Warn</label>
-            <label><input type="checkbox" class="filter-error" checked> Error</label>
-            <label><input type="checkbox" class="filter-debug" checked> Debug</label>
-          </div>
-        </div>
-        <div class="console-content">
-          <div class="console-logs"></div>
-        </div>
-        <div class="console-resize-handle resize-nw"></div>
-        <div class="console-resize-handle resize-n"></div>
-        <div class="console-resize-handle resize-ne"></div>
-        <div class="console-resize-handle resize-w"></div>
-        <div class="console-resize-handle resize-e"></div>
-        <div class="console-resize-handle resize-sw"></div>
-        <div class="console-resize-handle resize-s"></div>
-        <div class="console-resize-handle resize-se"></div>
-      </div>
-    `;
+    host = document.createElement('div');
+    host.id = 'console-overlay-host';
+    host.style.cssText =
+      'position:fixed;top:0;left:0;width:0;height:0;margin:0;padding:0;border:0;' +
+      'z-index:2147483647;pointer-events:none;color-scheme:dark;';
 
-    document.documentElement.appendChild(overlay);
+    root = host.attachShadow({ mode: 'open' });
+
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = chrome.runtime.getURL('overlay.css');
+    root.appendChild(link);
+
+    const win = document.createElement('div');
+    win.className = 'console-window';
+    win.innerHTML = `
+      <div class="console-titlebar">
+        <span class="console-title">Console Overlay</span>
+        <div class="console-controls">
+          <button class="console-btn console-minimize" title="Minimize" aria-label="Minimize">−</button>
+          <button class="console-btn console-maximize" title="Maximize" aria-label="Maximize">□</button>
+          <button class="console-btn console-close" title="Close" aria-label="Close">×</button>
+        </div>
+      </div>
+      <div class="console-toolbar">
+        <button class="console-toolbar-btn console-clear" title="Clear all logs">Clear</button>
+        <button class="console-toolbar-btn console-copy" title="Copy filtered logs">Copy All</button>
+        <div class="console-opacity-control">
+          <label><span>🔆</span><input type="range" class="opacity-slider" min="20" max="100" value="95" step="5" aria-label="Overlay opacity"></label>
+        </div>
+        <div class="console-filters">
+          <label><input type="checkbox" class="filter-log" checked> Log</label>
+          <label><input type="checkbox" class="filter-info" checked> Info</label>
+          <label><input type="checkbox" class="filter-warn" checked> Warn</label>
+          <label><input type="checkbox" class="filter-error" checked> Error</label>
+          <label><input type="checkbox" class="filter-debug" checked> Debug</label>
+        </div>
+      </div>
+      <div class="console-content">
+        <div class="console-logs" role="log" aria-live="polite"></div>
+      </div>
+      <div class="console-resize-handle resize-nw"></div>
+      <div class="console-resize-handle resize-n"></div>
+      <div class="console-resize-handle resize-ne"></div>
+      <div class="console-resize-handle resize-w"></div>
+      <div class="console-resize-handle resize-e"></div>
+      <div class="console-resize-handle resize-sw"></div>
+      <div class="console-resize-handle resize-s"></div>
+      <div class="console-resize-handle resize-se"></div>
+    `;
+    root.appendChild(win);
+
+    (document.body || document.documentElement).appendChild(host);
     attachEventListeners();
     loadState();
   }
 
+  function getWin() { return $('.console-window'); }
+
   function attachEventListeners() {
-    const win = overlay.querySelector('.console-window');
-    const titlebar = overlay.querySelector('.console-titlebar');
-    
+    const win = getWin();
+    const titlebar = $('.console-titlebar');
+
     // Dragging
     titlebar.addEventListener('mousedown', (e) => {
       if (e.target.closest('.console-controls') || isMaximized) return;
@@ -104,11 +127,11 @@
     });
 
     // Resizing
-    overlay.querySelectorAll('.console-resize-handle').forEach(handle => {
+    $all('.console-resize-handle').forEach(handle => {
       handle.addEventListener('mousedown', (e) => {
         if (isMaximized || isMinimized) return;
         isResizing = true;
-        
+
         const classList = handle.classList;
         if (classList.contains('resize-nw')) resizeDirection = 'nw';
         else if (classList.contains('resize-n')) resizeDirection = 'n';
@@ -132,7 +155,7 @@
       });
     });
 
-    // Mouse move/up
+    // Mouse move/up — listeners live on document (events bubble out of the shadow tree)
     document.addEventListener('mousemove', (e) => {
       if (isDragging) {
         const deltaX = e.clientX - dragStartX;
@@ -181,7 +204,7 @@
 
         win.style.width = newWidth + 'px';
         win.style.height = newHeight + 'px';
-        
+
         if (resizeDirection.includes('w') || resizeDirection.includes('n')) {
           win.style.left = newLeft + 'px';
           win.style.top = newTop + 'px';
@@ -192,35 +215,48 @@
     });
 
     function handleMouseUp() {
-      if (isDragging) { isDragging = false; saveState(); }
-      if (isResizing) { isResizing = false; resizeDirection = null; saveState(); }
+      if (isDragging) { isDragging = false; captureNormalGeometry(); saveState(); }
+      if (isResizing) { isResizing = false; resizeDirection = null; captureNormalGeometry(); saveState(); }
     }
 
     document.addEventListener('mouseup', handleMouseUp);
 
     // Buttons
-    overlay.querySelector('.console-close').addEventListener('click', () => toggleOverlay());
-    overlay.querySelector('.console-minimize').addEventListener('click', () => toggleMinimize());
-    overlay.querySelector('.console-maximize').addEventListener('click', () => toggleMaximize());
-    overlay.querySelector('.console-clear').addEventListener('click', () => clearLogs());
-    overlay.querySelector('.console-copy').addEventListener('click', () => copyAllLogs());
+    $('.console-close').addEventListener('click', () => toggleOverlay());
+    $('.console-minimize').addEventListener('click', () => toggleMinimize());
+    $('.console-maximize').addEventListener('click', () => toggleMaximize());
+    $('.console-clear').addEventListener('click', () => clearLogs());
+    $('.console-copy').addEventListener('click', () => copyAllLogs());
 
     // Opacity
-    overlay.querySelector('.opacity-slider').addEventListener('input', (e) => {
+    $('.opacity-slider').addEventListener('input', (e) => {
       win.style.opacity = e.target.value / 100;
       saveState();
     });
 
     // Filters
-    overlay.querySelectorAll('.console-filters input').forEach(f => {
-      f.addEventListener('change', () => renderLogs());
+    $all('.console-filters input').forEach(f => {
+      f.addEventListener('change', () => { renderLogs(); saveState(); });
     });
   }
 
+  // Remember the un-maximized window box so we can always restore it.
+  function captureNormalGeometry() {
+    if (isMaximized || isMinimized) return;
+    const win = getWin();
+    if (!win) return;
+    normalGeometry = {
+      left: win.style.left,
+      top: win.style.top,
+      width: win.style.width,
+      height: win.style.height
+    };
+  }
+
   function toggleMinimize() {
-    const win = overlay.querySelector('.console-window');
-    const content = overlay.querySelector('.console-content');
-    const toolbar = overlay.querySelector('.console-toolbar');
+    const win = getWin();
+    const content = $('.console-content');
+    const toolbar = $('.console-toolbar');
 
     isMinimized = !isMinimized;
 
@@ -238,19 +274,12 @@
   }
 
   function toggleMaximize() {
-    const win = overlay.querySelector('.console-window');
+    const win = getWin();
 
     isMaximized = !isMaximized;
 
     if (isMaximized) {
-      savedStateMaximize = {
-        left: win.style.left,
-        top: win.style.top,
-        right: win.style.right,
-        bottom: win.style.bottom,
-        width: win.style.width,
-        height: win.style.height
-      };
+      captureNormalGeometry();
       win.style.left = '0';
       win.style.top = '0';
       win.style.right = 'auto';
@@ -259,68 +288,103 @@
       win.style.height = '100vh';
       win.classList.add('maximized');
     } else {
-      if (savedStateMaximize) {
-        win.style.left = savedStateMaximize.left || '';
-        win.style.top = savedStateMaximize.top || '';
-        win.style.right = savedStateMaximize.right || '20px';
-        win.style.bottom = savedStateMaximize.bottom || '20px';
-        win.style.width = savedStateMaximize.width || '600px';
-        win.style.height = savedStateMaximize.height || '400px';
-      }
+      const g = normalGeometry || {};
+      win.style.left = g.left || '';
+      win.style.top = g.top || '';
+      win.style.right = g.left ? 'auto' : '20px';
+      win.style.bottom = g.top ? 'auto' : '20px';
+      win.style.width = g.width || '600px';
+      win.style.height = g.height || '400px';
       win.classList.remove('maximized');
     }
     saveState();
   }
 
+  function isScrolledToBottom(container) {
+    return container.scrollHeight - container.scrollTop - container.clientHeight < 40;
+  }
+
+  function buildEntry(log) {
+    const entry = document.createElement('div');
+    entry.className = `console-log console-log-${log.type}`;
+
+    const time = document.createElement('span');
+    time.className = 'console-log-time';
+    time.textContent = new Date(log.timestamp).toLocaleTimeString();
+
+    const type = document.createElement('span');
+    type.className = 'console-log-type';
+    type.textContent = `[${log.type.toUpperCase()}]`;
+
+    const msg = document.createElement('span');
+    msg.className = 'console-log-message';
+    msg.textContent = log.message;
+
+    const copy = document.createElement('button');
+    copy.className = 'console-log-copy';
+    copy.title = 'Copy this log';
+    copy.setAttribute('aria-label', 'Copy this log');
+    copy.textContent = '📋';
+    copy.addEventListener('click', (e) => {
+      e.stopPropagation();
+      copyText(`[${new Date(log.timestamp).toLocaleString()}] [${log.type.toUpperCase()}] ${log.message}`);
+      showNotification('Copied!');
+    });
+
+    entry.append(time, type, msg, copy);
+    return entry;
+  }
+
+  function getFilters() {
+    const filters = {};
+    FILTER_TYPES.forEach(t => {
+      const cb = $(`.filter-${t}`);
+      filters[t] = cb ? cb.checked : true;
+    });
+    return filters;
+  }
+
+  // Incremental append for a single new log — O(1), no full rebuild.
+  function appendLogEntry(log) {
+    if (!root) return;
+    const container = $('.console-logs');
+    const filters = getFilters();
+    if (!filters[log.type]) return;
+
+    const stick = isScrolledToBottom(container);
+    container.appendChild(buildEntry(log));
+    // Cap DOM nodes so long-running, high-volume pages stay O(1) amortized.
+    while (container.childElementCount > MAX_LOGS) {
+      container.removeChild(container.firstElementChild);
+    }
+    if (stick) container.scrollTop = container.scrollHeight;
+  }
+
+  // Full rebuild — only on filter change, buffer load, or clear.
+  function renderLogs() {
+    if (!root) return;
+    const container = $('.console-logs');
+    const filters = getFilters();
+
+    const frag = document.createDocumentFragment();
+    logs.filter(log => filters[log.type]).forEach(log => frag.appendChild(buildEntry(log)));
+
+    container.replaceChildren(frag);
+    container.scrollTop = container.scrollHeight;
+  }
+
   function addLogDirect(logData) {
     logs.push(logData);
-    if (logs.length > 1000) logs.shift();
-    renderLogs();
+    if (logs.length > MAX_LOGS) logs.shift();
+    appendLogEntry(logData);
   }
 
   function addLog(logData) {
-    if (isReady && overlay && isEnabled) {
+    if (isReady && root && isEnabled && !loadingBuffer) {
       addLogDirect(logData);
-    } else {
-      messageQueue.push(logData);
     }
-  }
-
-  function renderLogs() {
-    if (!overlay) return;
-    const container = overlay.querySelector('.console-logs');
-    const filters = {
-      log: overlay.querySelector('.filter-log').checked,
-      info: overlay.querySelector('.filter-info').checked,
-      warn: overlay.querySelector('.filter-warn').checked,
-      error: overlay.querySelector('.filter-error').checked,
-      debug: overlay.querySelector('.filter-debug').checked
-    };
-
-    container.innerHTML = '';
-    
-    logs.filter(log => filters[log.type]).forEach(log => {
-      const entry = document.createElement('div');
-      entry.className = `console-log console-log-${log.type}`;
-      const time = new Date(log.timestamp).toLocaleTimeString();
-      
-      entry.innerHTML = `
-        <span class="console-log-time">${time}</span>
-        <span class="console-log-type">[${log.type.toUpperCase()}]</span>
-        <span class="console-log-message">${escapeHtml(log.message)}</span>
-        <button class="console-log-copy">📋</button>
-      `;
-      
-      entry.querySelector('.console-log-copy').addEventListener('click', (e) => {
-        e.stopPropagation();
-        navigator.clipboard.writeText(`[${new Date(log.timestamp).toLocaleString()}] [${log.type.toUpperCase()}] ${log.message}`);
-        showNotification('Copied!');
-      });
-      
-      container.appendChild(entry);
-    });
-    
-    container.scrollTop = container.scrollHeight;
+    // While loading the buffer (or before ready) we drop live messages here:
+    // the buffer snapshot already contains everything up to this moment.
   }
 
   function clearLogs() {
@@ -329,35 +393,46 @@
   }
 
   function copyAllLogs() {
-    const filters = {
-      log: overlay.querySelector('.filter-log').checked,
-      info: overlay.querySelector('.filter-info').checked,
-      warn: overlay.querySelector('.filter-warn').checked,
-      error: overlay.querySelector('.filter-error').checked,
-      debug: overlay.querySelector('.filter-debug').checked
-    };
-    
+    const filters = getFilters();
     const filtered = logs.filter(log => filters[log.type]);
-    const text = filtered.map(log => 
+    const text = filtered.map(log =>
       `[${new Date(log.timestamp).toLocaleString()}] [${log.type.toUpperCase()}] ${log.message}`
     ).join('\n');
-    
-    navigator.clipboard.writeText(text);
+
+    copyText(text);
     showNotification(`${filtered.length} logs copied`);
   }
 
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+  // Clipboard with graceful fallback for insecure (http) contexts.
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+      (document.body || document.documentElement).appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    } catch (e) {
+      // give up silently
+    }
   }
 
   function showNotification(message) {
+    if (!root) return;
     const notif = document.createElement('div');
     notif.className = 'console-notification';
     notif.textContent = message;
-    overlay.appendChild(notif);
-    setTimeout(() => notif.classList.add('show'), 10);
+    root.appendChild(notif);
+    requestAnimationFrame(() => notif.classList.add('show'));
     setTimeout(() => {
       notif.classList.remove('show');
       setTimeout(() => notif.remove(), 300);
@@ -365,18 +440,20 @@
   }
 
   function saveState() {
-    if (!overlay) return;
-    const win = overlay.querySelector('.console-window');
-    const slider = overlay.querySelector('.opacity-slider');
-    
+    if (!root) return;
+    const win = getWin();
+    const slider = $('.opacity-slider');
+
     chrome.storage.local.set({
       overlayState: {
-        left: win.style.left,
-        top: win.style.top,
-        width: win.style.width,
-        height: win.style.height,
+        // Persist the normal (un-maximized) geometry so restore is always correct.
+        left: normalGeometry?.left ?? win.style.left,
+        top: normalGeometry?.top ?? win.style.top,
+        width: normalGeometry?.width ?? win.style.width,
+        height: normalGeometry?.height ?? win.style.height,
         opacity: win.style.opacity || '0.95',
         opacityValue: slider ? slider.value : '95',
+        filters: getFilters(),
         isMinimized,
         isMaximized
       }
@@ -385,21 +462,38 @@
 
   function loadState() {
     chrome.storage.local.get(['overlayState'], (result) => {
-      if (!result.overlayState) return;
-      const win = overlay.querySelector('.console-window');
-      const slider = overlay.querySelector('.opacity-slider');
-      const content = overlay.querySelector('.console-content');
-      const toolbar = overlay.querySelector('.console-toolbar');
+      if (!result.overlayState || !root) return;
+      const win = getWin();
+      const slider = $('.opacity-slider');
+      const content = $('.console-content');
+      const toolbar = $('.console-toolbar');
       const state = result.overlayState;
 
       if (state.left) win.style.left = state.left;
       if (state.top) win.style.top = state.top;
       if (state.width) win.style.width = state.width;
       if (state.height) win.style.height = state.height;
+      if (state.left || state.top) { win.style.right = 'auto'; win.style.bottom = 'auto'; }
       if (state.opacity) win.style.opacity = state.opacity;
       if (state.opacityValue && slider) slider.value = state.opacityValue;
 
-      // Apply minimized state directly (don't toggle)
+      // Restore filters
+      if (state.filters) {
+        FILTER_TYPES.forEach(t => {
+          const cb = $(`.filter-${t}`);
+          if (cb && typeof state.filters[t] === 'boolean') cb.checked = state.filters[t];
+        });
+        renderLogs();
+      }
+
+      // The persisted geometry is the normal box.
+      normalGeometry = {
+        left: state.left || '',
+        top: state.top || '',
+        width: state.width || '',
+        height: state.height || ''
+      };
+
       if (state.isMinimized) {
         isMinimized = true;
         savedStateMinimize = { height: state.height || win.style.height };
@@ -408,17 +502,12 @@
         win.style.height = 'auto';
       }
 
-      // Apply maximized state directly (don't toggle)
       if (state.isMaximized && !state.isMinimized) {
         isMaximized = true;
-        savedStateMaximize = {
-          left: state.left,
-          top: state.top,
-          width: state.width,
-          height: state.height
-        };
         win.style.left = '0';
         win.style.top = '0';
+        win.style.right = 'auto';
+        win.style.bottom = 'auto';
         win.style.width = '100vw';
         win.style.height = '100vh';
         win.classList.add('maximized');
@@ -430,17 +519,16 @@
     isEnabled = !isEnabled;
 
     if (isEnabled) {
-      if (!overlay) createOverlay();
-      overlay.style.display = 'block';
+      if (!root) createOverlay();
+      host.style.display = 'block';
       isReady = true;
+      logs = [];
 
-      // Discard queued messages — buffer request will provide the complete history
-      messageQueue = [];
-
-      // Request buffered logs (single source of truth)
+      // Load the buffer as the single source of truth; drop live messages until it arrives.
+      loadingBuffer = true;
       loadBufferedLogs();
     } else {
-      if (overlay) overlay.style.display = 'none';
+      if (host) host.style.display = 'none';
       isReady = false;
     }
 
@@ -449,20 +537,17 @@
 
   window.addEventListener('message', (event) => {
     if (event.source !== window) return;
-    
-    // Handle regular console messages
+
     if (event.data?.type === 'CONSOLE_OVERLAY_MESSAGE' && event.data?.source === 'console-interceptor') {
       addLog(event.data.data);
     }
-    
-    // Handle buffer response
+
     if (event.data?.type === 'CONSOLE_OVERLAY_BUFFER_RESPONSE' && event.data?.source === 'console-interceptor') {
       if (event.data.buffer && Array.isArray(event.data.buffer)) {
-        event.data.buffer.forEach(logData => {
-          addLogDirect(logData);
-        });
-        console.log('[Console Overlay] Loaded', event.data.buffer.length, 'buffered logs');
+        logs = event.data.buffer.slice(-MAX_LOGS);
+        renderLogs();
       }
+      loadingBuffer = false;
     }
   });
 

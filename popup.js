@@ -1,7 +1,17 @@
-// Popup script v1.3.0
+// Popup script v1.4.0
 document.addEventListener('DOMContentLoaded', async () => {
   const toggleCheckbox = document.getElementById('toggleOverlay');
   const statusText = document.getElementById('status');
+
+  // Show the actual configured keyboard shortcut, if any.
+  if (chrome.commands && chrome.commands.getAll) {
+    chrome.commands.getAll((commands) => {
+      const cmd = commands.find(c => c.name === 'toggle-overlay');
+      const hint = document.getElementById('shortcut-hint');
+      if (hint && cmd && cmd.shortcut) hint.textContent = `Toggle shortcut: ${cmd.shortcut}`;
+      else if (hint) hint.textContent = 'Set a shortcut at chrome://extensions/shortcuts';
+    });
+  }
 
   // Get current state
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });

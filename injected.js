@@ -1,4 +1,4 @@
-// This script runs in the page context to intercept console calls v1.3.0
+// This script runs in the page context to intercept console calls v1.4.0
 (function() {
   'use strict';
 
@@ -6,9 +6,12 @@
   if (window.__consoleOverlayInitialized) return;
   window.__consoleOverlayInitialized = true;
 
+  const MAX_BUFFER = 1000;
+  const MAX_MESSAGE_LENGTH = 8000; // truncate very large payloads to protect memory/UI
+
   // Create a buffer for logs before the overlay is ready
   window.__consoleOverlayBuffer = window.__consoleOverlayBuffer || [];
-  
+
   // Store original console methods
   const originalConsole = {
     log: console.log.bind(console),
@@ -32,19 +35,93 @@
     clear: console.clear.bind(console)
   };
 
-  function formatArgs(args) {
-    return Array.from(args).map(arg => {
-      if (arg === null) return 'null';
-      if (arg === undefined) return 'undefined';
-      if (typeof arg === 'object') {
-        try {
-          return JSON.stringify(arg, null, 2);
-        } catch (e) {
-          return String(arg);
-        }
+  // Format a single value the way DevTools roughly would.
+  function formatValue(arg, seen) {
+    if (arg === null) return 'null';
+    if (arg === undefined) return 'undefined';
+
+    const t = typeof arg;
+    if (t === 'string') return arg;
+    if (t === 'number' || t === 'boolean') return String(arg);
+    if (t === 'bigint') return String(arg) + 'n';
+    if (t === 'symbol') return arg.toString();
+    if (t === 'function') {
+      return `ƒ ${arg.name || '(anonymous)'}()`;
+    }
+
+    // Error objects: enumerable-stringify would lose everything → use stack/message.
+    if (arg instanceof Error) {
+      return arg.stack || `${arg.name}: ${arg.message}`;
+    }
+
+    // DOM nodes
+    if (typeof Node !== 'undefined' && arg instanceof Node) {
+      if (arg instanceof Element) {
+        const id = arg.id ? `#${arg.id}` : '';
+        const cls = arg.className && typeof arg.className === 'string'
+          ? '.' + arg.className.trim().split(/\s+/).join('.')
+          : '';
+        return `<${arg.tagName.toLowerCase()}${id}${cls}>`;
       }
-      return String(arg);
-    }).join(' ');
+      return String(arg.nodeName || arg);
+    }
+
+    // Other objects → safe JSON with circular guard
+    seen = seen || new WeakSet();
+    try {
+      return JSON.stringify(arg, (key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) return '[Circular]';
+          seen.add(value);
+        }
+        if (typeof value === 'bigint') return String(value) + 'n';
+        if (typeof value === 'function') return `ƒ ${value.name || '(anonymous)'}()`;
+        return value;
+      }, 2);
+    } catch (e) {
+      try { return String(arg); } catch (_) { return '[Unserializable]'; }
+    }
+  }
+
+  // Resolve printf-style format specifiers (%s %d %i %f %o %O %c %%).
+  function applyFormatSpecifiers(args) {
+    const first = args[0];
+    if (typeof first !== 'string' || !/%[sdifoOc%]/.test(first)) return null;
+
+    const rest = args.slice(1);
+    let i = 0;
+    const out = first.replace(/%([sdifoOc%])/g, (match, spec) => {
+      if (spec === '%') return '%';
+      if (i >= rest.length) return match;
+      const value = rest[i++];
+      switch (spec) {
+        case 's': return typeof value === 'string' ? value : formatValue(value);
+        case 'd':
+        case 'i': return String(parseInt(value, 10));
+        case 'f': return String(parseFloat(value));
+        case 'c': return ''; // CSS styling is dropped in the overlay
+        case 'o':
+        case 'O':
+        default: return formatValue(value);
+      }
+    });
+
+    const remaining = rest.slice(i).map(a => formatValue(a));
+    return [out, ...remaining].filter(s => s !== '').join(' ');
+  }
+
+  function formatArgs(args) {
+    const arr = Array.from(args);
+    if (arr.length === 0) return '';
+    const formatted = applyFormatSpecifiers(arr);
+    const message = formatted !== null
+      ? formatted
+      : arr.map(a => formatValue(a)).join(' ');
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      return message.slice(0, MAX_MESSAGE_LENGTH) +
+        `\n… (truncated, ${message.length - MAX_MESSAGE_LENGTH} more chars)`;
+    }
+    return message;
   }
 
   function sendToOverlay(type, message, stack) {
@@ -55,15 +132,13 @@
       stack: stack
     };
 
-    // Buffer the log
-    if (window.__consoleOverlayBuffer.length < 1000) {
-      window.__consoleOverlayBuffer.push(logData);
-    } else {
+    // Buffer the log (FIFO)
+    window.__consoleOverlayBuffer.push(logData);
+    if (window.__consoleOverlayBuffer.length > MAX_BUFFER) {
       window.__consoleOverlayBuffer.shift();
-      window.__consoleOverlayBuffer.push(logData);
     }
 
-    // Also send via postMessage
+    // Also send live via postMessage
     try {
       window.postMessage({
         type: 'CONSOLE_OVERLAY_MESSAGE',
@@ -82,7 +157,7 @@
 
       // Send to content script
       const message = formatArgs(args);
-      const stack = type === 'error' ? (args[0]?.stack || null) : null;
+      const stack = args[0] instanceof Error ? args[0].stack : null;
       sendToOverlay(type, message, stack);
     };
   }
@@ -188,8 +263,9 @@
 
   // Intercept unhandled promise rejections
   window.addEventListener('unhandledrejection', (event) => {
-    const message = `Unhandled Promise Rejection: ${event.reason}`;
-    const stack = event.reason?.stack || null;
+    const reason = event.reason;
+    const message = `Unhandled Promise Rejection: ${formatValue(reason)}`;
+    const stack = reason?.stack || null;
     sendToOverlay('error', message, stack);
   }, true);
 
@@ -214,24 +290,29 @@
 
   // Intercept Fetch API errors
   const originalFetch = window.fetch;
-  window.fetch = function(input, init) {
-    const url = typeof input === 'string' ? input : input?.url || 'unknown';
-    const method = init?.method || (typeof input === 'object' ? input?.method : null) || 'GET';
+  if (typeof originalFetch === 'function') {
+    window.fetch = function(input, init) {
+      const url = typeof input === 'string'
+        ? input
+        : (input && input.url) || 'unknown';
+      const method = (init && init.method) ||
+        (typeof input === 'object' && input ? input.method : null) || 'GET';
 
-    return originalFetch.apply(this, arguments)
-      .then(response => {
-        if (!response.ok) {
-          const message = `${method} ${url}\n${response.status} (${response.statusText || 'Error'})`;
+      return originalFetch.apply(this, arguments)
+        .then(response => {
+          if (!response.ok) {
+            const message = `${method} ${url}\n${response.status} (${response.statusText || 'Error'})`;
+            sendToOverlay('error', message, null);
+          }
+          return response;
+        })
+        .catch(error => {
+          const message = `${method} ${url}\nNetwork Error: ${error.message}`;
           sendToOverlay('error', message, null);
-        }
-        return response;
-      })
-      .catch(error => {
-        const message = `${method} ${url}\nNetwork Error: ${error.message}`;
-        sendToOverlay('error', message, null);
-        throw error;
-      });
-  };
+          throw error;
+        });
+    };
+  }
 
   // Send initial log
   sendToOverlay('log', 'Console Overlay: Monitoring active (+ Network)', null);
@@ -239,9 +320,8 @@
   // Listen for buffer requests
   window.addEventListener('message', (event) => {
     if (event.source !== window) return;
-    if (event.data?.type === 'CONSOLE_OVERLAY_REQUEST_BUFFER' && 
+    if (event.data?.type === 'CONSOLE_OVERLAY_REQUEST_BUFFER' &&
         event.data?.source === 'console-overlay-content') {
-      // Send buffer back
       window.postMessage({
         type: 'CONSOLE_OVERLAY_BUFFER_RESPONSE',
         source: 'console-interceptor',
