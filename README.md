@@ -173,6 +173,16 @@ Website Console → injected.js → postMessage → content.js → Overlay UI
 - Max. 1000 Logs im Speicher (FIFO), Nachrichten >8000 Zeichen werden gekürzt
 - Nicht verfügbar auf `chrome://`, `edge://`, `about:` und Extension-Seiten
 
+## Tests
+
+Unit-Tests für die Abfang- und Formatierlogik (`injected.js`) laufen mit dem eingebauten Test-Runner von Node (22+), ohne Browser und ohne Abhängigkeiten — `injected.js` wird dafür in einem `vm`-Kontext mit nachgebautem `window`, `console`, `XMLHttpRequest` und `fetch` geladen:
+
+```bash
+node --test test/*.test.js
+```
+
+Abgedeckt: DevTools-artige Formatierung (Error, BigInt, Symbol, Funktionen, Zirkelbezüge), printf-Platzhalter, Kürzung, Puffer-Limit, `assert`/`count`/`time`/`group`/`trace`/`clear`, unbehandelte Fehler und Rejections, XHR-/fetch-Fehler sowie die Manifest-Querbezüge (Dateien vorhanden, `world: "MAIN"`, gleiche Versionsnummer). GitHub Actions fährt die Tests bei jedem Push.
+
 ## Changelog
 
 ### v1.4.0 (2026-06-13)

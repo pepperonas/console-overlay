@@ -12,10 +12,10 @@ No build process. Load directly as unpacked extension in `chrome://extensions/` 
 
 ```bash
 # ZIP for release
-zip -r console-overlay.zip . -x ".*" -x "__MACOSX" -x "*.git*"
+zip -r console-overlay.zip . -x ".*" -x "__MACOSX" -x "*.git*" -x "test/*"
 ```
 
-Testing: Open `demo.html` in browser with extension loaded.
+Testing: `node --test test/*.test.js` (unit tests for `injected.js`, loaded into a `vm` context with stubbed `window`/`console`/`XMLHttpRequest`/`fetch`; no dependencies). Manual: open `demo.html` in browser with extension loaded.
 
 ## Architecture
 

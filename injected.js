@@ -36,7 +36,7 @@
   };
 
   // Format a single value the way DevTools roughly would.
-  function formatValue(arg, seen) {
+  function formatValue(arg) {
     if (arg === null) return 'null';
     if (arg === undefined) return 'undefined';
 
@@ -66,13 +66,17 @@
       return String(arg.nodeName || arg);
     }
 
-    // Other objects → safe JSON with circular guard
-    seen = seen || new WeakSet();
+    // Other objects → safe JSON with circular guard. Only true cycles (an
+    // object inside itself) are [Circular]; the same object referenced twice
+    // side by side is printed twice, like DevTools does. `this` is the holder
+    // of the current key, so the ancestor path can be trimmed back to it.
+    const ancestors = [];
     try {
-      return JSON.stringify(arg, (key, value) => {
+      return JSON.stringify(arg, function (key, value) {
         if (typeof value === 'object' && value !== null) {
-          if (seen.has(value)) return '[Circular]';
-          seen.add(value);
+          while (ancestors.length && ancestors[ancestors.length - 1] !== this) ancestors.pop();
+          if (ancestors.includes(value)) return '[Circular]';
+          ancestors.push(value);
         }
         if (typeof value === 'bigint') return String(value) + 'n';
         if (typeof value === 'function') return `ƒ ${value.name || '(anonymous)'}()`;
@@ -96,9 +100,11 @@
       const value = rest[i++];
       switch (spec) {
         case 's': return typeof value === 'string' ? value : formatValue(value);
+        // Symbols cannot be converted to strings — parseInt would throw and
+        // break the page's own console call. DevTools prints NaN.
         case 'd':
-        case 'i': return String(parseInt(value, 10));
-        case 'f': return String(parseFloat(value));
+        case 'i': return typeof value === 'symbol' ? 'NaN' : String(parseInt(value, 10));
+        case 'f': return typeof value === 'symbol' ? 'NaN' : String(parseFloat(value));
         case 'c': return ''; // CSS styling is dropped in the overlay
         case 'o':
         case 'O':
@@ -292,15 +298,18 @@
   const originalFetch = window.fetch;
   if (typeof originalFetch === 'function') {
     window.fetch = function(input, init) {
+      // string, Request (has .url) or URL object (has .href)
       const url = typeof input === 'string'
         ? input
-        : (input && input.url) || 'unknown';
+        : (input && (input.url || input.href)) || 'unknown';
       const method = (init && init.method) ||
         (typeof input === 'object' && input ? input.method : null) || 'GET';
 
       return originalFetch.apply(this, arguments)
         .then(response => {
-          if (!response.ok) {
+          // Opaque no-cors responses always have status 0 / ok=false — that
+          // is not an error (DevTools does not report them either).
+          if (!response.ok && response.type !== 'opaque' && response.status !== 0) {
             const message = `${method} ${url}\n${response.status} (${response.statusText || 'Error'})`;
             sendToOverlay('error', message, null);
           }
